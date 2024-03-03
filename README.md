@@ -1,1 +1,1 @@
-To run this, you need to install Flask (pip install Flask) and PyJWT (pip install PyJWT). Then, save this code in a file (e.g., jwks_server.py) and run it using python jwks_server.py. The server will start running on port 8080.# JWKS-server
+To run this, you need to install Flask (pip install Flask) and PyJWT (pip install PyJWT). Then, save this code in a file (e.g., jwks_server.py) and run it using python jwks_server.py. The server will start running on port 8080.
