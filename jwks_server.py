@@ -1,70 +1,75 @@
-from flask import Flask, request, jsonify
+# jwks_server.py
+import os
+from datetime import datetime, timedelta
+from flask import Flask, jsonify, request
+from jose import jwt
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
-import jwt
-import datetime
 
 app = Flask(__name__)
 
-# Dictionary to hold generated keys
-keys = {}
-
-def generate_key_pair(kid, expiry_days):
+# Generate RSA key pair
+def generate_key_pair(kid, expiry_date):
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
         backend=default_backend()
     )
     public_key = private_key.public_key()
-    # Serialize public key to PEM format
-    pem = public_key.public_bytes(
+    pem_private = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode('utf-8')
+    pem_public = public_key.public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     ).decode('utf-8')
-    expiry = datetime.datetime.utcnow() + datetime.timedelta(days=expiry_days)
-    keys[kid] = {"pem": pem, "expiry": expiry}
-    return private_key
-
-
-@app.route('/jwks', methods=['GET'])
-def jwks():
-    jwks = {
-        "keys": [
-            {
-                "kid": kid,
-                "kty": "RSA",
-                "alg": "RS256",
-                "use": "sig",
-                "n": keys[kid]["pem"].split('\n')[1],
-                "e": "AQAB"
-            }
-            for kid in keys if keys[kid]["expiry"] > datetime.datetime.utcnow()
-        ]
+    return {
+        'kid': kid,
+        'expiry': expiry_date,
+        'private_key': pem_private,
+        'public_key': pem_public
     }
-    return jsonify(jwks)
 
+# JWKS endpoint
+@app.route('/.well-known/jwks.json', methods=['GET'])
+def jwks():
+    current_time = datetime.utcnow()
+    jwks = []
+    for key in keys.values():
+        if key['expiry'] > current_time:
+            jwks.append({
+                'kid': key['kid'],
+                'kty': 'RSA',
+                'alg': 'RS256',
+                'use': 'sig',
+                'n': key['public_key']
+            })
+    return jsonify(keys=jwks)
 
+# Authentication endpoint
 @app.route('/auth', methods=['POST'])
-def authenticate():
-    data = request.get_json()
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({"message": "Missing username or password"}), 400
+def auth():
+    expired = request.args.get('expired')
+    kid = list(keys.keys())[0] if expired else list(keys.keys())[1]
+    private_key = keys[kid]['private_key']
+    expiry = keys[kid]['expiry']
+    
+    token_payload = {
+        'sub': 'fakeuser',
+        'exp': int((datetime.utcnow() + timedelta(minutes=30)).timestamp()),
+        'iat': int(datetime.utcnow().timestamp()),
+        'kid': kid
+    }
 
-    # Fake user authentication
-    username = data['username']
-    password = data['password']
-    if username == 'fakeuser' and password == 'password':
-        # Generate JWT
-        private_key = generate_key_pair("fakekid", 30)  # Expire in 30 days
-        expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
-        payload = {'sub': username, 'exp': expiry}
-        token = jwt.encode(payload, private_key, algorithm='RS256')
-        return jsonify({"access_token": token.decode('utf-8')})
-
-    return jsonify({"message": "Invalid username or password"}), 401
-
+    jwt_token = jwt.encode(token_payload, private_key, algorithm='RS256')
+    return jsonify(token=jwt_token)
 
 if __name__ == '__main__':
+    keys = {
+        'key1': generate_key_pair('key1', datetime.utcnow() + timedelta(hours=1)),
+        'key2': generate_key_pair('key2', datetime.utcnow() + timedelta(days=1))
+    }
     app.run(port=8080)
