@@ -1,22 +1,42 @@
-# test_jwks_server.py
-import unittest
-import requests
+import pytest
+import json
+from app import app
 
-class TestJWKS_Server(unittest.TestCase):
-    def setUp(self):
-        self.base_url = 'http://127.0.0.1:8080'
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
-    def test_jwks_endpoint(self):
-        response = requests.get(f'{self.base_url}/.well-known/jwks.json')
-        self.assertEqual(response.status_code, 200)
-        jwks = response.json()
-        self.assertTrue('keys' in jwks)
-    
-    def test_auth_endpoint(self):
-        response = requests.post(f'{self.base_url}/auth')
-        self.assertEqual(response.status_code, 200)
-        token = response.json()['token']
-        self.assertTrue(token)
+def test_jwks_endpoint(client):
+    response = client.get('/jwks')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert 'keys' in data
+
+def test_auth_endpoint(client):
+    response = client.post('/auth')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert 'jwt' in data
+
+def test_expired_auth_endpoint(client):
+    response = client.post('/auth?expired=true')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert 'jwt' in data
+
+def test_invalid_route(client):
+    response = client.get('/invalid')
+    assert response.status_code == 404
+
+def test_invalid_method_jwks_endpoint(client):
+    response = client.post('/jwks')
+    assert response.status_code == 405
+
+def test_invalid_method_auth_endpoint(client):
+    response = client.get('/auth')
+    assert response.status_code == 405
 
 if __name__ == '__main__':
-    unittest.main()
+    pytest.main()
