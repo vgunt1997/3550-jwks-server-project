@@ -1,75 +1,47 @@
-# jwks_server.py
-import os
-from datetime import datetime, timedelta
 from flask import Flask, jsonify, request
-from jose import jwt
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+import datetime
 
 app = Flask(__name__)
 
-# Generate RSA key pair
-def generate_key_pair(kid, expiry_date):
+keys = {}
+
+def generate_key():
     private_key = rsa.generate_private_key(
         public_exponent=65537,
-        key_size=2048,
-        backend=default_backend()
+        key_size=2048
     )
     public_key = private_key.public_key()
-    pem_private = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption()
-    ).decode('utf-8')
-    pem_public = public_key.public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo
-    ).decode('utf-8')
     return {
-        'kid': kid,
-        'expiry': expiry_date,
-        'private_key': pem_private,
-        'public_key': pem_public
+        'kid': str(hash(public_key)),
+        'expiry': (datetime.datetime.utcnow() + datetime.timedelta(days=30)).isoformat(),
+        'public_key': public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode()
     }
 
-# JWKS endpoint
-@app.route('/.well-known/jwks.json', methods=['GET'])
+@app.route('/jwks', methods=['GET'])
 def jwks():
-    current_time = datetime.utcnow()
-    jwks = []
-    for key in keys.values():
-        if key['expiry'] > current_time:
-            jwks.append({
-                'kid': key['kid'],
-                'kty': 'RSA',
-                'alg': 'RS256',
-                'use': 'sig',
-                'n': key['public_key']
-            })
-    return jsonify(keys=jwks)
+    valid_keys = {kid: key for kid, key in keys.items() if datetime.datetime.utcnow() < datetime.datetime.fromisoformat(key['expiry'])}
+    return jsonify({'keys': list(valid_keys.values())})
 
-# Authentication endpoint
 @app.route('/auth', methods=['POST'])
 def auth():
     expired = request.args.get('expired')
-    kid = list(keys.keys())[0] if expired else list(keys.keys())[1]
-    private_key = keys[kid]['private_key']
-    expiry = keys[kid]['expiry']
-    
-    token_payload = {
-        'sub': 'fakeuser',
-        'exp': int((datetime.utcnow() + timedelta(minutes=30)).timestamp()),
-        'iat': int(datetime.utcnow().timestamp()),
-        'kid': kid
-    }
+    if expired:
+        key = list(keys.values())[0]  # Assume there's only one key for simplicity
+    else:
+        key = [key for key in keys.values() if datetime.datetime.utcnow() < datetime.datetime.fromisoformat(key['expiry'])][0]
+    # Here you would perform user authentication and generate a JWT using the selected key
+    jwt = generate_jwt(key)
+    return jsonify({'jwt': jwt})
 
-    jwt_token = jwt.encode(token_payload, private_key, algorithm='RS256')
-    return jsonify(token=jwt_token)
+def generate_jwt(key):
+    # Implement JWT generation logic here
+    return 'JWT'
 
 if __name__ == '__main__':
-    keys = {
-        'key1': generate_key_pair('key1', datetime.utcnow() + timedelta(hours=1)),
-        'key2': generate_key_pair('key2', datetime.utcnow() + timedelta(days=1))
-    }
+    keys['key1'] = generate_key()  # Assume there's only one key for simplicity
     app.run(port=8080)
