@@ -6,6 +6,13 @@ Prerequisites
 - argon2-cffi
 - SQLite
 
+Clone the repository:
+git clone https://github.com/vgunt1997/3550-jwks-server-project
+cd jwks-server
+
+To run the test suite, use the following command:
+pytest
+
 
 
 Project 1: JWKS server
