@@ -1,10 +1,10 @@
 Prerequisites
--Python 3.x
--Flask
--PyJWT
--cryptography
--argon2-cffi
--SQLite
+- Python 3.x
+- Flask
+- PyJWT
+- cryptography
+- argon2-cffi
+- SQLite
 
 
 
