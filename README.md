@@ -27,4 +27,4 @@ Test Client:
 Project 3: Bulking up our JWKS server
 ![Screenshot (112)](https://github.com/vgunt1997/3550-jwks-server-project/assets/161993240/638d6200-af79-4987-966c-17c3133c6ea2)
 Test Client:
-![Screenshot (114)](https://github.com/vgunt1997/3550-jwks-server-project/assets/161993240/ffd9318b-cb8b-4f4b-819b-10be583e0341)
+![Screenshot (114)](https://github.com/vgunt1997/3550-jwks-server-project/assets/161993240/7a393b29-a862-4348-839e-c42fc0f88b7f)
