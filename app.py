@@ -15,10 +15,8 @@ import argon2
 
 app = Flask(__name__)
 
-# Encryption key from environment variable
 encryption_key = b'YOUR_AES_ENCRYPTION_KEY_HERE'
 
-# Argon2 parameters
 argon2_params = {
     'time_cost': 2,
     'memory_cost': 102400,
