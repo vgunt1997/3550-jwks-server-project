@@ -1,4 +1,4 @@
-Prerequisites
+Download first:
 - Python 3.x
 - Flask
 - PyJWT
