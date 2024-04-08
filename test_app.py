@@ -4,7 +4,7 @@ from app import app, initialize_db
 
 @pytest.fixture
 def client():
-    initialize_db()  # Ensure the database is initialized before each test
+    initialize_db()
     with app.test_client() as client:
         yield client
 
