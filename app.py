@@ -11,6 +11,8 @@ import sqlite3
 import uuid
 import argon2
 
+# A lot of imports
+
 app = Flask(__name__)
 
 # Encryption key from environment variable
